@@ -6,6 +6,26 @@ Le but : un assistant utile au quotidien qui garde tes données chez toi. Le mod
 
 > Projet personnel, en développement actif. Il est utilisé tous les jours par son auteur, mais n'a été testé que sur une seule configuration (voir « Matériel »). Attends-toi à devoir adapter quelques réglages.
 
+## Aperçu
+
+Une interface sombre et sobre : l'historique des discussions à gauche, la conversation au centre, un compteur de génération en haut.
+
+**Recherche web et sources.** Une question d'actualité lance une recherche ; les sources s'affichent sous la réponse, avec un bouton « Lire » pour résumer la page.
+
+![Une réponse avec la météo et ses sources](docs/captures/meteo.png)
+
+**Mails (lecture seule).** Le résumé des mails non lus, une capsule par boîte, et un bouton pour ouvrir Thunderbird.
+
+![Résumé des mails non lus](docs/captures/mails.png)
+
+**News IA.** Les nouveaux modèles de langage qui tiennent sur la carte graphique, avec la commande `ollama pull` prête à copier, et des articles en français.
+
+![News IA : nouveaux modèles et articles](docs/captures/news-ia.png)
+
+**Réglages.** Le choix du micro et de la sortie audio, et l'affichage du compteur de tokens. Le reste se règle dans `config.toml`.
+
+![Le panneau des réglages](docs/captures/reglages.png)
+
 ## Ce qu'Athena sait faire
 
 - **Deux modes** : écrit (clavier, par défaut) et oral (micro). Le micro-interrupteur bascule de l'un à l'autre ; la voix n'est chargée qu'à la première activation du micro.
