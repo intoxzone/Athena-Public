@@ -41,4 +41,4 @@ if "--verifier" in sys.argv:          # vérification sans ouvrir la fenêtre : 
     print("[Lanceur] Imports OK (flet, ui, engine).")
     sys.exit(0)
 
-ft.run(ui.main)
+ft.run(ui.main, assets_dir=ui.ASSETS_DIR)       # assets_dir : dossier de l'icône de la fenêtre (assets\athena.ico)

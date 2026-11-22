@@ -10,6 +10,8 @@ import datetime
 import os
 from urllib.parse import urlparse
 
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")    # ressources de l'interface (icône athena.ico), quel que soit le dossier de lancement
+
 # --- Palette : gris anthracite + accent orange (maquette validée) ---
 BG        = "#2A2C30"   # fond de la fenêtre
 LINE      = "#3A3D43"   # filets discrets
@@ -44,9 +46,10 @@ def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.DARK
     page.padding = 0
     page.spacing = 0
-    page.window.width = 1280                      # 720p (1280 x 720)
-    page.window.height = 720
+    page.window.width = 1408                      # 720p (1280 x 720) agrandi de 10 % : 1408 x 792
+    page.window.height = 792
     page.window.alignment = ft.Alignment.CENTER   # fenêtre centrée au milieu de l'écran au démarrage
+    page.window.icon = "athena.ico"               # icône de la fenêtre et de la barre des tâches (Windows) : assets\athena.ico
     page.window.min_width = 920
     page.window.min_height = 560
 
@@ -159,14 +162,14 @@ def main(page: ft.Page):
             ft.Row([audio_edit_btn]),
             audio_note,
             ft.Text("AFFICHAGE", size=13, weight=ft.FontWeight.W_600, color=TEXT_2),
-            ft.Row([ft.Text("Compteur de tokens (bas à droite)", size=14, color=TEXT), tokens_switch],
+            ft.Row([ft.Text("Compteur de tokens (en haut)", size=14, color=TEXT), tokens_switch],
                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.CENTER),
             ft.Text("La voix, la pause de fin de phrase, le modèle et les mots-clés de recherche se règlent dans config.toml.",
                     size=13, color=TEXT_2),
         ], spacing=20))
     scrim = ft.Container(left=0, top=0, right=0, bottom=0, visible=False, bgcolor=ft.Colors.with_opacity(0.6, "#121315"))
 
-    # ------------------------------------------------------------------ encart « Génération » (bas à droite)
+    # ------------------------------------------------------------------ encart « Génération » (en-tête, à droite du mot « Athena »)
     tok_dot = ft.Container(width=8, height=8, border_radius=4, bgcolor=TEXT_2)
     tok_title = ft.Text("Génération", size=12, color=TEXT_2)
     tok_count = ft.Text("", size=12, weight=ft.FontWeight.W_600, color=TEXT)
@@ -1041,4 +1044,4 @@ def main(page: ft.Page):
 if __name__ == "__main__":
     import logs
     logs.install()                    # lancement depuis un terminal : l'heure en début de chaque ligne de la console
-    ft.run(main)
+    ft.run(main, assets_dir=ASSETS_DIR)
