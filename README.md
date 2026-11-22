@@ -131,7 +131,7 @@ L'autorisation est gardée dans `agenda_token.json`, un fichier **secret** que G
 ## Confidentialité
 
 - Le modèle, la voix et la transcription tournent sur ton PC.
-- **Mails et agenda** : accès en lecture seule (Athena ne peut ni envoyer, ni supprimer, ni marquer « lu »). Leur contenu n'est ni enregistré dans l'historique, ni écrit dans les logs. L'agenda est fabriqué par le code sans passer par le modèle.
+- **Mails et agenda** : accès en lecture seule (Athena ne peut ni envoyer, ni supprimer, ni marquer « lu »). Leur contenu n'est jamais écrit dans les logs et, par défaut, pas non plus dans l'historique des discussions. Le réglage `[historique] garder_prive = true` les y enregistre en entier (en texte clair, 3 jours) pour rouvrir une discussion avec la même mise en page ; passer à `false` efface ce qui avait été gardé. Dans tous les cas, ils ne sont jamais redonnés au modèle. L'agenda est fabriqué par le code sans passer par le modèle.
 - **Sorties vers Internet** : ton instance SearXNG, Open-Meteo (seules les coordonnées de la météo sont envoyées), le serveur IMAP de tes boîtes, Google Calendar si tu l'actives, et les listes publiques de modèles et d'articles pour « News IA ».
 - Les fichiers personnels (`config.toml`, `history.json`, `prefs.json`, `agenda_token.json`, `athena.log`) sont ignorés par Git. Ne les publie jamais.
 

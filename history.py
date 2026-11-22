@@ -3,7 +3,11 @@
 - Une discussion = un titre (le début de la 1re question) + une liste d'échanges (question, réponse, sources).
 - Les discussions NON épinglées sont supprimées quand elles n'ont pas eu d'activité depuis RETENTION_DAYS jours
   (3 par défaut). Les discussions épinglées sont gardées jusqu'au désépinglage.
-- Un échange « privé » (résumé de mails) est enregistré SANS sa réponse : seul un message neutre est gardé.
+- Chaque échange garde aussi ses « données d'affichage » (capsules de mails et d'agenda, cartes News IA, boutons) pour que la
+  discussion rouverte ait la même mise en page qu'à l'origine.
+- Un échange « privé » (mails, agenda) n'est conservé en entier que si garder_prive est vrai (réglage [historique] garder_prive de
+  config.toml). Sinon il est enregistré SANS sa réponse ni ses capsules : seul un message neutre est gardé.
+  Un échange privé n'est jamais redonné au modèle quand on continue la discussion.
 - Le fichier est du texte clair sur ton PC : ne le partage pas. Il est écrit de façon atomique (fichier temporaire puis remplacement).
 """
 import json
@@ -18,6 +22,32 @@ MAX_CONVERSATIONS = 80       # discussions gardées au total (les plus anciennes
 MAX_TEXT = 20000             # caractères gardés par question ou réponse
 PRIVATE_NOTE = "(Le résumé des mails n'est pas conservé dans l'historique.)"
 _SOURCE_KEYS = ("title", "url", "kind", "subtitle", "snippet")
+MAX_EXTRA = 150000           # taille maximale (en caractères JSON) des données d'affichage gardées par échange
+_ACTIONS = ("thunderbird", "agenda_connect")      # boutons d'action connus (liste blanche)
+_EXTRA_DICTS = ("agenda", "mails", "veille")      # données d'affichage : capsules agenda, capsules mails, cartes News IA
+
+
+def is_private(turn):
+    """Échange « privé » (mails, agenda) : jamais redonné au modèle. Reconnaît aussi l'ancien format (note neutre à la place de la réponse)."""
+    return bool(turn.get("private")) or turn.get("a") == PRIVATE_NOTE
+
+
+def _clean_extra(extra, keep_private=True):
+    """Données d'affichage d'un échange : copie propre (JSON simple, boutons de la liste blanche). Dictionnaire vide si rien d'utile.
+    keep_private=False : les capsules de mails et d'agenda sont toujours retirées, même si on les reçoit par erreur."""
+    out = {}
+    if not isinstance(extra, dict): return out
+    for key in _EXTRA_DICTS:
+        val = extra.get(key)
+        if not isinstance(val, dict): continue
+        if key in ("agenda", "mails") and not keep_private: continue
+        try: val = json.loads(json.dumps(val, ensure_ascii=False))       # copie profonde ; erreur si ce n'est pas du JSON simple
+        except (TypeError, ValueError): continue
+        out[key] = val
+    actions = [a for a in (extra.get("actions") or []) if isinstance(a, str) and a in _ACTIONS]
+    if actions: out["actions"] = list(dict.fromkeys(actions))
+    if len(json.dumps(out, ensure_ascii=False)) > MAX_EXTRA: return {}      # trop gros : on garde seulement le texte
+    return out
 
 
 def _clean_sources(sources):
@@ -34,7 +64,12 @@ def _clean_conversation(c):
     turns = []
     for t in c["turns"]:
         if isinstance(t, dict) and isinstance(t.get("q"), str) and isinstance(t.get("a"), str):
-            turns.append({"q": t["q"][:MAX_TEXT], "a": t["a"][:MAX_TEXT], "sources": _clean_sources(t.get("sources"))})
+            turn = {"q": t["q"][:MAX_TEXT], "a": t["a"][:MAX_TEXT], "sources": _clean_sources(t.get("sources"))}
+            if t.get("private") is True: turn["private"] = True
+            extra = _clean_extra(t.get("extra"))
+            if extra: turn["extra"] = extra
+            if isinstance(t.get("part"), str) and t["part"].strip(): turn["part"] = t["part"][:300]
+            turns.append(turn)
     if not turns: return None
     try: created, updated = float(c.get("created", 0)), float(c.get("updated", 0))
     except (TypeError, ValueError): return None
@@ -93,21 +128,48 @@ class HistoryStore:
     def get(self, cid):
         return next((c for c in self.conversations if c["id"] == cid), None)
 
-    def add_turn(self, cid, question, answer, sources=None, private=False):
-        """Ajoute un échange (crée la discussion si `cid` est None ou inconnu). Retourne l'identifiant de la discussion."""
+    def add_turn(self, cid, question, answer, sources=None, private=False, extra=None, part=None, keep_private=False):
+        """Ajoute un échange (crée la discussion si `cid` est None ou inconnu). Retourne l'identifiant de la discussion.
+        extra : données d'affichage {"agenda", "mails", "veille", "actions"} pour redessiner la réponse à l'identique.
+        part : titre d'un bloc de la routine du matin (le titre fait partie du bloc, ce n'est pas une question de l'utilisateur).
+        private + keep_private=False : seule la note neutre est gardée (ni réponse, ni liens, ni capsules)."""
         now = self._clock()
         c = self.get(cid) if cid else None
         if c is None:
             title = " ".join(question.split())[:60] or "Discussion"
             c = {"id": uuid.uuid4().hex[:12], "title": title, "created": now, "updated": now, "pinned": False, "turns": []}
             self.conversations.append(c)
-        c["turns"].append({"q": question[:MAX_TEXT], "a": PRIVATE_NOTE if private else answer[:MAX_TEXT],
-                           "sources": [] if private else _clean_sources(sources)})
+        if private and not keep_private:
+            turn = {"q": question[:MAX_TEXT], "a": PRIVATE_NOTE, "sources": []}
+        else:
+            turn = {"q": question[:MAX_TEXT], "a": answer[:MAX_TEXT], "sources": _clean_sources(sources)}
+            if private: turn["private"] = True
+            clean = _clean_extra(extra, keep_private=keep_private)
+            if clean: turn["extra"] = clean
+            if isinstance(part, str) and part.strip(): turn["part"] = part[:300]
+        c["turns"].append(turn)
         c["turns"] = c["turns"][-MAX_TURNS:]
         c["updated"] = now
         self.purge(keep=c["id"])
         self.save()
         return c["id"]
+
+    def scrub_private(self):
+        """Efface de l'historique tout ce qui est privé (mails, agenda), pour les échanges déjà enregistrés : le texte devient la note
+        neutre et les capsules disparaissent. À appeler quand garder_prive est désactivé. Retourne le nombre d'échanges modifiés."""
+        changed = 0
+        for c in self.conversations:
+            for t in c["turns"]:
+                if t.get("private"):
+                    t["a"], t["sources"] = PRIVATE_NOTE, []
+                    for k in ("private", "extra", "part"): t.pop(k, None)
+                    changed += 1
+                elif isinstance(t.get("extra"), dict) and ("agenda" in t["extra"] or "mails" in t["extra"]):
+                    t["extra"] = {k: v for k, v in t["extra"].items() if k not in ("agenda", "mails")}
+                    if not t["extra"]: del t["extra"]
+                    changed += 1
+        if changed: self.save()
+        return changed
 
     def pin(self, cid, value=True):
         c = self.get(cid)

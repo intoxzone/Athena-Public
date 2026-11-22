@@ -37,6 +37,7 @@ PRONUNCIATIONS = ["web=ouèb", "news=niouze", "e-mails=i-mèl", "e-mail=i-mèl",
                   "mails=mèl", "mail=mèl", "football=foutbol"]   # « e-mail » AVANT « mail » : les règles s'appliquent dans l'ordre   # mots que la voix prononce mal : "mot=comme ça se prononce" (la voix seulement, jamais l'écran)
 WAKE_WORD   = "athena"
 USER_NAME   = ""                  # prénom dit dans la salutation vocale (« Salut <prénom> ») ; "" = simple « Salut » (réglage [ecoute] prenom)
+HISTORY_KEEP_PRIVATE = False      # historique : garder en entier les échanges privés (mails, agenda) pour les rouvrir à l'identique ? Non par défaut (réglage [historique] garder_prive)
 CHUNK_MS    = 80
 CHUNK_SIZE  = int(SAMPLE_RATE * CHUNK_MS / 1000)
 DEFAULT_MIC_GAIN     = 4.0        # volume du micro pour un appareil qu'aucun profil ne reconnaît
@@ -299,6 +300,7 @@ _CONFIG_MAP = [
     ("voix",    "coupe_phrase_longue", "SOFT_SPLIT_CHARS", int,   (60, 1000)),
     ("ecoute",  "mot_reveil",        "WAKE_WORD",          str,   None),
     ("ecoute",  "prenom",            "USER_NAME",          str,   None),
+    ("historique", "garder_prive",   "HISTORY_KEEP_PRIVATE", bool, None),
     ("ecoute",  "gain_micro_defaut", "DEFAULT_MIC_GAIN",   float, (0.1, 50)),
     ("ecoute",  "gain_vosk_defaut",  "DEFAULT_VOSK_GAIN",  float, (0.1, 50)),
     ("ecoute",  "delai_veille",      "FOLLOWUP_TIMEOUT",   float, (3, 300)),

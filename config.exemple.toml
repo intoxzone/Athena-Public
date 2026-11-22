@@ -95,6 +95,15 @@ page_max_caracteres = 3000   # texte de la page transmis au modèle (plus grand 
 page_delai          = 10     # secondes max pour joindre le site
 page_taille_max_ko  = 1500   # taille maximale téléchargée (Ko)
 
+[historique]
+# Historique des discussions (history.json, texte clair sur ton PC, supprimé après 3 jours sans activité sauf discussions épinglées).
+# Quand tu rouvres une discussion, Athena la redessine comme à l'origine (cartes Sources, offres, News IA, boutons).
+# garder_prive : les échanges PRIVÉS (mails, agenda) sont-ils enregistrés en entier, pour être rouverts à l'identique ?
+#   false (défaut) = non : à la place, une note neutre « le résumé n'est pas conservé » (rien de ton courrier ni de ton agenda sur le disque)
+#   true           = oui : objets et expéditeurs des mails, rendez-vous de l'agenda et résumés écrits sont gardés dans history.json
+# Passer de true à false EFFACE aussi ce qui avait déjà été gardé. Dans tous les cas, ces échanges ne sont jamais redonnés au modèle.
+garder_prive = false
+
 [veille]
 # « News IA » (cette section s'appelle [veille] pour la compatibilité) : « donne-moi les news IA », « quoi de neuf côté modèles ? »
 # ou clic sur la pastille « News IA » (en haut à droite).

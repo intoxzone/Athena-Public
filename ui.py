@@ -78,11 +78,14 @@ def main(page: ft.Page):
     ui_queue = queue.Queue()
     # Historique des discussions (history.json) : la discussion ouverte, la question en attente de sa réponse
     store = history.HistoryStore()
+    if not engine.HISTORY_KEEP_PRIVATE:         # réglage [historique] garder_prive désactivé : on efface aussi ce qui avait été gardé avant
+        n_scrubbed = store.scrub_private()
+        if n_scrubbed: print(f"[Historique] garder_prive désactivé : {n_scrubbed} échange(s) privé(s) effacé(s) de l'historique.")
     conv_id = None                      # discussion ouverte (None = nouvelle, pas encore enregistrée)
     closing = False                     # la fermeture d'Athena est en cours (on ne la lance qu'une fois)
     routine_active = False              # une « routine du matin » est en cours (bouton Stop visible, blocs enregistrés un par un)
     last_question = None                # question posée, en attente de sa réponse pour être enregistrée
-    turn_private = False                # la prochaine réponse est un résumé de mails : on ne l'enregistre pas
+    turn_private = False                # la prochaine réponse est privée (mails, agenda) : enregistrée en entier seulement si garder_prive est vrai
     ui_prefs = engine.load_prefs().get("ui", {})
     sidebar_open = bool(ui_prefs.get("sidebar", True)) if isinstance(ui_prefs, dict) else True
 
@@ -594,9 +597,35 @@ def main(page: ft.Page):
         page.run_task(run)
 
     def engine_turns(cid):
-        """Échanges d'une discussion pour redonner son contexte au modèle (les résumés de mails n'y sont pas)."""
+        """Échanges d'une discussion pour redonner son contexte au modèle (les échanges privés — mails, agenda — n'y sont JAMAIS)."""
         c = store.get(cid)
-        return [t for t in (c["turns"] if c else []) if t["a"] != history.PRIVATE_NOTE]
+        return [t for t in (c["turns"] if c else []) if not history.is_private(t)]
+
+    # Forme attendue des données d'affichage (reçues du moteur, ou relues dans history.json) : on ne dessine que ce qui est bien formé
+    def agenda_ok(d):
+        return isinstance(d, dict) and isinstance(d.get("days"), list)
+
+    def mails_ok(d):
+        return isinstance(d, dict) and isinstance(d.get("boxes"), list) and all(isinstance(b, dict) and isinstance(b.get("mails"), list) for b in d["boxes"])
+
+    def veille_ok(d):
+        return isinstance(d, dict) and isinstance(d.get("models"), list) and isinstance(d.get("articles"), list)
+
+    def render_turn(t):
+        """Un échange de l'historique redessiné COMME À L'ORIGINE : texte, capsules de mails / agenda, cartes News IA, boutons, sources.
+        Un bloc de la routine du matin garde son titre dans le bloc (pas de bulle « question »). Si les données sont abîmées, on retombe
+        sur le texte et les sources seuls."""
+        try:
+            extra = t.get("extra") or {}
+            text = (t["part"] + "\n\n" + t["a"]) if t.get("part") else t["a"]
+            block = ai_block(text, t["sources"], extra.get("actions"),
+                             extra.get("agenda") if agenda_ok(extra.get("agenda")) else None,
+                             extra.get("mails") if mails_ok(extra.get("mails")) else None,
+                             extra.get("veille") if veille_ok(extra.get("veille")) else None)
+            return ft.Column([block] if t.get("part") else [question_text(t["q"]), block], spacing=16)
+        except Exception as ex:
+            print(f"[Historique] un échange n'a pas pu être redessiné à l'identique ({type(ex).__name__}) : texte seul affiché.")
+            return ft.Column([question_text(t["q"]), ai_block(t["a"], t["sources"])], spacing=16)
 
     def show_welcome():
         chat_list.controls.clear()
@@ -629,7 +658,7 @@ def main(page: ft.Page):
             return
         chat_list.controls.clear()
         for t in c["turns"]:
-            chat_list.controls.append(ft.Column([question_text(t["q"]), ai_block(t["a"], t["sources"])], spacing=16))
+            chat_list.controls.append(render_turn(t))
         conv_id, last_question = cid, None
         show_chat()
         if assistant: assistant.restore_history(engine_turns(cid))      # le modèle retrouve le contexte
@@ -764,9 +793,9 @@ def main(page: ft.Page):
         elif msg_type == "action":
             if data in ("thunderbird", "agenda_connect"): pending_actions.append(data)      # liste blanche : seul un bouton connu peut apparaître
         elif msg_type == "agenda":
-            pending_agenda = data if isinstance(data, dict) and isinstance(data.get("days"), list) else None       # données de l'agenda (capsules)
+            pending_agenda = data if agenda_ok(data) else None         # données de l'agenda (capsules)
         elif msg_type == "veille":
-            ok_shape = isinstance(data, dict) and isinstance(data.get("models"), list) and isinstance(data.get("articles"), list)
+            ok_shape = veille_ok(data)
             pending_veille = data if ok_shape else None                # cartes de la veille
             if ok_shape: set_veille_badge(0)                           # ce qui s'affiche maintenant n'est plus « nouveau »
         elif msg_type == "veille_badge":
@@ -774,10 +803,9 @@ def main(page: ft.Page):
         elif msg_type == "veille_state":
             set_veille_badge(state=data)
         elif msg_type == "mails":
-            ok_shape = isinstance(data, dict) and isinstance(data.get("boxes"), list) and all(isinstance(b, dict) and isinstance(b.get("mails"), list) for b in data["boxes"])
-            pending_mails = data if ok_shape else None                 # données des mails (capsules)
+            pending_mails = data if mails_ok(data) else None           # données des mails (capsules)
         elif msg_type == "private":
-            turn_private = True              # résumé de mails : affiché, mais pas écrit dans history.json
+            turn_private = True              # mails / agenda : écrits en entier dans history.json seulement si garder_prive est vrai (sinon note neutre)
         elif msg_type == "sources":
             # Valeur reçue du moteur : on ne garde que des liens http(s) bien formés
             pending_sources = [s for s in data if isinstance(s, dict) and str(s.get("url", "")).lower().startswith(("http://", "https://"))]
@@ -788,13 +816,16 @@ def main(page: ft.Page):
                 current_turn = ft.Column([], spacing=16)
                 chat_list.controls.append(current_turn)
             current_turn.controls.append(ai_block(data, pending_sources, pending_actions, pending_agenda, pending_mails, pending_veille))
+            extra = {"actions": pending_actions, "agenda": pending_agenda, "mails": pending_mails, "veille": pending_veille}      # de quoi redessiner ce bloc à l'identique
             pending_actions, pending_agenda, pending_mails, pending_veille = [], None, None, None
-            question, saved = last_question, data
+            question, saved, part = last_question, data, None
             if question is None and routine_active:        # parties suivantes de la routine : le titre du bloc sert de question
-                title, _, rest = data.partition("\n\n")
+                title, sep, rest = data.partition("\n\n")
                 question, saved = title.strip()[:80], (rest or data)
+                if sep and rest: part = title              # le titre fait partie du bloc : à la réouverture, pas de bulle « question »
             if question is not None:         # un échange complet (question + réponse) : on l'enregistre dans l'historique
-                conv_id = store.add_turn(conv_id, question, saved, pending_sources, private=turn_private)
+                conv_id = store.add_turn(conv_id, question, saved, pending_sources, private=turn_private, extra=extra, part=part,
+                                         keep_private=engine.HISTORY_KEEP_PRIVATE)
                 refresh_sidebar()
             last_question, turn_private = None, False
             pending_sources = []
