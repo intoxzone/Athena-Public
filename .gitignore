@@ -1,0 +1,40 @@
+__pycache__/
+*.pyc
+*.log
+.env
+.venv/
+venv/
+
+# Réglages personnels (copie de config.exemple.toml)
+config.toml
+
+# Choix audio de l'utilisateur
+prefs.json
+prefs.json.tmp
+
+# Icône de ton Thunderbird, extraite à l'exécution (pour le bouton « Ouvrir Thunderbird »)
+thunderbird_icon.png
+
+# Journal du lanceur sans console et raccourci (chemins locaux)
+athena.log
+athena.log.old
+*.lnk
+
+# Autorisation Google Agenda (clé de rafraîchissement : un SECRET, ne jamais versionner)
+agenda_token.json
+agenda_token.json.tmp
+
+# Historique des discussions (texte clair, personnel)
+history.json
+history.json.tmp
+history.json.bad
+
+# Fichier de mots de passe personnel : ne jamais versionner
+MDP*.txt
+
+# Dossier personnel (secrets) : ne jamais versionner
+Private/
+
+# Ce que la veille IA a deja montre (personnel)
+veille_vue.json
+veille_vue.json.tmp

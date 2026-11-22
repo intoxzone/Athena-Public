@@ -1,0 +1,236 @@
+# =====================================================================================
+#  Configuration d'Athena
+# =====================================================================================
+#  - Ce fichier est un EXEMPLE (versionné dans Git). Ta copie personnelle s'appelle config.toml
+#    (non versionnée) : c'est elle qu'Athena lit au démarrage. Modifie-la, puis relance Athena.
+#  - Tout réglage absent garde sa valeur par défaut (celles du code). Une erreur de saisie
+#    n'empêche jamais Athena de démarrer : un message [Config] s'affiche dans la console.
+#  - Les textes vont entre guillemets. Pour les chemins Windows, utilise des APOSTROPHES
+#    (guillemets simples) : 'C:\Users\...' (pas besoin de doubler les \).
+#  - Une ligne qui commence par # est un commentaire (ignorée).
+#  - JAMAIS de mot de passe ici : il reste dans la variable d'environnement ATHENA_SEARX_PASSWORD.
+# =====================================================================================
+
+[chemins]
+# Par défaut, Athena cherche ses modèles dans le DOSSIER PARENT de celui du code (voir le README : whisper\, whisper-cpu\, kokoro\,
+# vosk\, silero\). Ne décommente ces lignes que si tes modèles sont rangés ailleurs.
+# whisper_cli    = 'C:\chemin\vers\whisper\whisper-cli.exe'          # repli si le serveur Whisper ne démarre pas
+# whisper_server = 'C:\chemin\vers\whisper-cpu\whisper-server.exe'   # build processeur de whisper.cpp
+# Modèle Whisper : ggml-small-q5_1.bin (retenu, ~1,7 s) | ggml-base.bin (~0,5 s, comprend moins bien)
+#                  | ggml-large-v3-turbo-q5_0.bin (~8 s sur processeur, le plus précis)
+# whisper_modele = 'C:\chemin\vers\whisper\ggml-small-q5_1.bin'
+# kokoro_modele  = 'C:\chemin\vers\kokoro\kokoro-v1.0.onnx'
+# kokoro_voix    = 'C:\chemin\vers\kokoro\voices-v1.0.bin'
+# vosk_modele    = 'C:\chemin\vers\vosk\vosk-model-small-fr-0.22'
+# silero_modele  = 'C:\chemin\vers\silero\silero_vad.onnx'
+
+[whisper]
+hote            = "127.0.0.1"
+port            = 8178
+threads         = 8      # cœurs utilisés (Ryzen 7 5700X : 8 cœurs physiques)
+delai_demarrage = 90     # secondes max pour charger le modèle
+delai_requete   = 60     # secondes max pour transcrire une phrase
+# Amorce : oriente Whisper vers tes mots (noms propres, sujets habituels). Garde 1 ou 2 phrases.
+# Mets "" pour la désactiver.
+amorce = "Athena, assistante vocale. Questions du quotidien : la météo à Paris, l'actualité, le football, les sciences, l'espace, Mars, le nombre Pi. L'intelligence artificielle : DeepSeek, Qwen, Ollama, ChatGPT, Claude. Emploi : cherche un job, du travail, des offres d'emploi."
+
+[llm]
+url               = "http://localhost:11434/api/chat"
+modele            = "qwen3.5:9b"
+taille_contexte   = 4096    # plus grand = plus de VRAM utilisée (Qwen doit rester à 100 % GPU : vérifie avec `ollama ps`)
+garder_en_memoire = "30m"   # durée pendant laquelle Ollama garde le modèle chargé (Athena le décharge aussi à sa fermeture)
+# Si Ollama ne tourne pas au démarrage d'Athena, elle lance seulement son serveur (« ollama serve », sans l'application ni fenêtre).
+# Mets "" pour ne jamais le lancer. Utilise des apostrophes pour le chemin. Par défaut : %LOCALAPPDATA%\Programs\Ollama\ollama.exe
+# (l'emplacement de l'installation normale d'Ollama) : ne change cette ligne que s'il est installé ailleurs.
+# ollama_exe        = 'C:\chemin\vers\ollama.exe'
+historique_max    = 12      # nombre de messages gardés en mémoire (hors consigne système)
+phrases_oral      = 5       # longueur maximale d'une réponse lue à voix haute (en phrases ; indicatif : le modèle l'applique approximativement)
+phrases_ecrit     = 8       # longueur maximale d'une réponse écrite à l'écran (en phrases)
+delai_connexion   = 5       # secondes
+delai_lecture     = 120     # secondes
+
+[voix]
+voix                = "ff_siwis"
+vitesse             = 1.1
+langue              = "fr-fr"
+coupe_phrase_longue = 140   # une phrase plus longue que ça (sans point) est coupée à une virgule
+# Mots que la voix prononce mal : "mot=comme ça se prononce". Ça ne change que la voix, l'écran garde l'orthographe normale.
+# Les règles s'appliquent dans l'ordre : « e-mail » doit venir AVANT « mail ».
+prononciations = ["web=ouèb", "news=niouze", "e-mails=i-mèl", "e-mail=i-mèl", "emails=i-mèl", "email=i-mèl",
+                  "mails=mèl", "mail=mèl", "football=foutbol"]
+
+[ecoute]
+mot_reveil       = "athena"
+prenom           = ""     # prénom dit dans la salutation vocale (« Salut Camille c'est Aténa ») ; "" = « Salut, c'est Aténa »
+delai_veille     = 10.0   # secondes de silence avant la veille automatique
+pause_fin_phrase = 1.5    # pause (s) tolérée au milieu d'une phrase : plus grand = moins coupé, réponse plus tardive
+duree_max_phrase = 15.0   # durée maximale d'une question (s)
+seuil_parole     = 0.5    # probabilité Silero au-dessus de laquelle ça parle (0 à 1)
+seuil_silence    = 0.35   # en dessous : silence (doit rester inférieur à seuil_parole)
+min_parole       = 0.4    # un bruit plus court (s) est ignoré
+# Volume du micro pour un appareil qu'aucun profil ci-dessous ne reconnaît (augmente-le si Athena t'entend mal).
+gain_micro_defaut = 4.0
+gain_vosk_defaut  = 1.0   # volume pour le mot de réveil « Athena »
+
+[recherche]
+# Adresse de TON instance SearXNG (format JSON activé) et ton nom d'utilisateur (authentification basique). Le mot de passe va dans la
+# variable d'environnement ATHENA_SEARX_PASSWORD. Tant que ce n'est pas rempli, la recherche web est désactivée (Athena le dit).
+url         = "https://ton-searxng.exemple.fr/search"
+utilisateur = "ton-nom"   # la variable ATHENA_SEARX_USER, si elle existe, a la priorité
+extrait_max = 300    # nombre de caractères gardés par résultat de recherche
+nb_sources  = 3      # liens « Sources » affichés sous une réponse. Tu peux en demander plus : « cite 5 sources », « plus de sources »
+# Si la question contient un de ces mots, la recherche web est lancée sans demander au modèle.
+# Tu peux les écrire avec accents et majuscules, c'est normalisé au chargement.
+mots_cles = [
+    "meteo", "temperature", "temperatures", "pleuvoir", "quel temps", "demain", "hier", "s est passe",
+    "actualite", "actualites", "actu", "actus", "infos", "dernier", "derniere", "derniers", "dernieres",
+    "prochain", "prochaine", "prochains", "prochaines", "recent", "recente", "recents", "recentes", "recemment",
+    "resultat", "resultats", "score", "scores", "match", "matchs", "classement",
+    "prix", "combien coute", "combien ca coute", "bourse", "cette semaine", "ce week end",
+]
+
+[outils]
+# Lecture d'une page web : lien collé dans le message, bouton « Lire » sous une source, ou « lis le premier lien ».
+page_max_caracteres = 3000   # texte de la page transmis au modèle (plus grand = plus de contexte utilisé : reste sous ~6000)
+page_delai          = 10     # secondes max pour joindre le site
+page_taille_max_ko  = 1500   # taille maximale téléchargée (Ko)
+
+[veille]
+# « News IA » (cette section s'appelle [veille] pour la compatibilité) : « donne-moi les news IA », « quoi de neuf côté modèles ? »
+# ou clic sur la pastille « News IA » (en haut à droite).
+# Athena repère les nouveaux modèles qui tiennent sur ta carte (Ollama, Hugging Face) et des articles en français. LECTURE SEULE, adresses
+# publiques seulement (rien de personnel n'est envoyé), aucun modèle de langage : les cartes sont fabriquées par le code.
+# Ce que tu as déjà vu est mémorisé dans veille_vue.json (personnel, ignoré par Git).
+actif           = true     # false = pas de News IA du tout (la pastille disparaît)
+verif_demarrage = true     # vérification discrète au démarrage d'Athena : met à jour le compteur de la pastille
+jours           = 30       # modèles des N derniers jours
+jours_articles  = 7        # articles des N derniers jours
+# Taille du fichier du modèle en Q4 (ton Qwen 3.5 9B fait 5,24 Go et occupe ~6,4 Go de VRAM sur 8) :
+taille_ok_go     = 6.0     # ✅ tient jusqu'ici
+taille_limite_go = 6.5     # ⚠️ limite jusqu'ici, ❌ trop gros au-delà
+cacher_trop_gros = true    # n'affiche pas les modèles trop gros (sauf un petit Qwen récent)
+max_modeles     = 8        # modèles affichés au maximum
+max_articles    = 6        # articles affichés au maximum
+delai           = 10       # secondes max par source
+# Surveillance spéciale : un petit Qwen d'une génération récente (ex. Qwen 3.6 ou plus en 9B ou moins) est mis en tête avec ⭐.
+qwen_min        = 3.6      # génération minimale
+qwen_taille_max = 10       # taille maximale (milliards de paramètres)
+# Éditeurs suivis sur Hugging Face (nom exact du compte) :
+editeurs = ["Qwen", "mistralai", "google", "meta-llama", "microsoft", "ibm-granite", "nvidia", "HuggingFaceTB", "LiquidAI", "allenai", "deepseek-ai", "openai"]
+# Flux d'articles en français, au format "Nom=adresse du flux RSS" (filtrés sur les mots-clés modèles/LLM/open source) :
+sources_articles = ["ActuIA=https://www.actuia.com/feed/", "Next=https://next.ink/feed/", "Korben=https://korben.info/feed", "Numerama=https://www.numerama.com/feed/"]
+
+[emploi]
+# Offres d'emploi (« cherche des offres de cariste », « des annonces de boulot à Lyon en CDI »). API officielle France Travail,
+# LECTURE SEULE. Clés : variables d'environnement ATHENA_FT_ID et ATHENA_FT_SECRET (jamais dans ce fichier).
+source        = "web"        # "web" : recherche via ton SearXNG (par défaut) | "api" : API France Travail (il faut l'accès + les clés)
+ville         = "Paris"      # ville par défaut (affichage)
+commune_insee = "75056"      # son code INSEE (API seulement) ; une autre ville dite dans la phrase est trouvée toute seule
+rayon_km      = 0            # rayon de recherche en km (API seulement) : 0 = la ville elle-même, 5 = autour de la ville. En mode "web", seuls les résultats qui parlent de la ville sont gardés.
+max_offres    = 5            # nombre d'offres affichées
+delai         = 15           # secondes max pour joindre France Travail
+# Plan B : si l'API France Travail est indisponible, Athena cherche via ton SearXNG et met ces sites d'emploi en premier.
+sites = ["francetravail.fr", "indeed.fr", "indeed.com","hellowork.com", "jobijoba.com", "meteojob.com", "apec.fr", "welcometothejungle.com",
+         "jooble.org", "optioncarriere.com", "cadremploi.fr", "monster.fr", "emploi-territorial.fr"]
+
+[mails]
+# Résumé des mails (« résume mes mails », « j'ai des nouveaux mails ? »). LECTURE SEULE : Athena ne peut ni envoyer, ni supprimer,
+# ni marquer « lu ». Le texte des mails ne va qu'à ton modèle local. Le résumé s'écrit à l'écran, il n'est jamais lu à voix haute.
+heures        = 48    # on regarde les mails NON LUS des dernières heures
+max_par_boite = 10    # nombre maximal de mails lus par boîte (les plus récents)
+lot           = 5     # mails résumés à la fois (contexte limité du modèle)
+extrait_max   = 500   # caractères gardés au début de chaque mail
+delai         = 15    # secondes max pour joindre un serveur
+# Bouton « Ouvrir Thunderbird » sous un résumé de mails non lus. "" = Athena cherche thunderbird.exe toute seule
+# (C:\Program Files\Mozilla Thunderbird\...). Indique le chemin (entre apostrophes) s'il est ailleurs.
+thunderbird_exe = ""
+
+# Une boîte = un bloc [mails.comptes.N]. JAMAIS de mot de passe ici : mot_de_passe_env est le NOM de la variable d'environnement
+# qui le contient (à définir une fois dans PowerShell : setx ATHENA_MAIL_1_PASSWORD "le-mot-de-passe", puis rouvrir le terminal).
+# Enlève les # d'un bloc pour l'activer.
+#
+# Gmail : validation en 2 étapes + « mot de passe d'application » (compte Google > Sécurité), et IMAP activé.
+# [mails.comptes.1]
+# nom              = "Gmail"
+# serveur          = "imap.gmail.com"
+# port             = 993
+# securite         = "ssl"
+# utilisateur      = "toi@gmail.com"
+# mot_de_passe_env = "ATHENA_MAIL_1_PASSWORD"
+#
+# Serveur perso / OVH / autre (adresse du serveur IMAP fournie par ton hébergeur ; OVH : ssl0.ovh.net).
+# [mails.comptes.2]
+# nom              = "Perso"
+# serveur          = "mail.exemple.fr"
+# port             = 993
+# securite         = "ssl"
+# utilisateur      = "toi@exemple.fr"
+# mot_de_passe_env = "ATHENA_MAIL_2_PASSWORD"
+#
+# Proton : installe et connecte le logiciel « Proton Mail Bridge » sur ce PC ; le mot de passe est celui que le Bridge génère
+# (pas celui de ton compte Proton).
+# [mails.comptes.3]
+# nom              = "Proton"
+# serveur          = "127.0.0.1"
+# port             = 1143
+# securite         = "starttls"
+# utilisateur      = "toi@proton.me"
+# mot_de_passe_env = "ATHENA_MAIL_3_PASSWORD"
+
+[routine]
+# « Routine du matin » : dis (ou écris) une de ces phrases, Athena enchaîne les parties ci-dessous, chacune dans son bloc.
+# À voix haute elle reste brève (une ou deux phrases par partie) ; le détail, les cartes et les sources sont à l'écran.
+# La commande « stop » (voix, ou bouton Stop, ou taper « stop ») coupe la voix et arrête la routine.
+phrases = ["routine du matin", "routine matinale", "lance la routine"]
+# Parties dans l'ordre. Choix : "meteo", "agenda", "mails", "emploi", "politique", "monde". Retire-en pour les sauter.
+parties = ["meteo", "agenda", "mails", "emploi", "politique", "monde"]
+# Météo : service Open-Meteo (gratuit, sans clé ; seules ces coordonnées lui sont envoyées). Par défaut : Paris (mets les coordonnées de ta ville).
+latitude  = 48.8566
+longitude = 2.3522
+# Recherches d'actualité (via ton SearXNG, résultats du jour, résumés par Qwen uniquement d'après ces résultats).
+recherche_politique = "actualité politique France aujourd'hui"
+recherche_monde     = "actualité internationale monde aujourd'hui"
+phrases_actu = 4     # phrases maximum par résumé d'actualité (à l'écran ; à voix haute : les 2 premières)
+delai        = 10    # secondes max pour joindre la météo / la recherche
+# À voix haute, Athena fait une pause entre les parties : pendant ce silence, « stop » est entendu (pendant qu'elle parle, sa propre voix
+# qui revient dans les haut-parleurs couvre le « stop », mesuré). Le bouton Stop et le « stop » tapé marchent à tout moment.
+pause_stop = 2.5     # secondes de silence entre deux parties (oral seulement) ; « stop » met ~1,5 s à être reconnu
+
+[agenda]
+# Google Agenda, LECTURE SEULE : « j'ai quoi de prévu aujourd'hui / demain / cette semaine / lundi ». Tous les agendas de ton compte
+# (perso, partagés...) sont lus. Connexion unique : Connecter-agenda.bat (voir le README). Clés dans les variables d'environnement
+# ATHENA_GOOGLE_CLIENT_ID et ATHENA_GOOGLE_CLIENT_SECRET (jamais dans ce fichier).
+# Le contenu n'est jamais donné à Qwen, ni enregistré dans l'historique, ni écrit dans les logs.
+exclure = []             # agendas à ignorer, par nom exact, ex. ["Jours fériés en France", "Anniversaires"]
+delai = 15               # secondes max pour joindre Google
+max_evenements = 80      # événements listés au maximum à l'écran
+
+[filtres]
+# Transcriptions ignorées : bruits de bouche, et phrases que Whisper invente sur du silence.
+mots_parasites        = ["hmm", "hum", "mm", "ah", "oh", "euh", "pff"]
+phrases_hallucination = ["sous titres", "amara", "merci d avoir", "abonnez"]
+
+# -------------------------------------------------------------------------------------
+#  Profils de volume. Le micro et la sortie se choisissent dans l'interface (fenêtre « Audio »,
+#  réglages ⚙). Quand le nom du micro choisi contient input_kw, Athena applique les volumes du
+#  profil : mic_gain (micro, pour Silero) et vosk_gain (mot de réveil). Micro inconnu : volumes
+#  par défaut (section [ecoute]). output_kw n'est plus utilisé. vad_threshold et speech_chunks
+#  ne servent que si Silero est indisponible (ancien détecteur de volume).
+# -------------------------------------------------------------------------------------
+[profils.1]
+nom           = "Casque"
+mic_gain      = 7.0
+vosk_gain     = 2.0
+input_kw      = "casque"      # un morceau du nom de TON micro tel que Windows l'affiche (ex. la marque de ton casque)
+output_kw     = "casque"
+vad_threshold = 700
+speech_chunks = 2
+
+[profils.2]
+nom           = "Webcam / Haut-parleurs PC"
+mic_gain      = 4.0
+vosk_gain     = 1.0
+input_kw      = "webcam"
+output_kw     = "realtek"
+vad_threshold = 1300
+speech_chunks = 3
